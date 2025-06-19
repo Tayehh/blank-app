@@ -57,11 +57,13 @@ if len(st.session_state.prices) == 3:
     delta2 = p3 - p2
     avg_change = (delta1 + delta2) / 2
 
+    # عتبات شديدة الحساسية
+    threshold_weak = 0.0
+    threshold_strong = 0.000000000000001
+
     # تحديد الاتجاه
     direction = "💤 STAY OUT"
     strength = "❔ غير واضح"
-    threshold_weak = 0.0000000000001
-    threshold_strong = 0.000000000005
 
     if avg_change > threshold_weak:
         direction = "📈 LONG"
