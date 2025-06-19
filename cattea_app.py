@@ -22,14 +22,22 @@ def get_btc_price():
     except:
         return None
 
-# زر جلب السعر
-if st.button("📥 جلب السعر الحالي"):
-    price = get_btc_price()
-    if price:
-        st.session_state.prices.append(price)
-        st.success(f"تم جلب السعر: {price} $")
-    else:
-        st.error("فشل في الاتصال بـ CoinGecko")
+# تقسيم الأزرار في صف واحد
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("📥 جلب السعر الحالي"):
+        price = get_btc_price()
+        if price:
+            st.session_state.prices.append(price)
+            st.success(f"تم جلب السعر: {price} $")
+        else:
+            st.error("فشل في الاتصال بـ CoinGecko")
+
+with col2:
+    if st.button("🔄 إعادة تعيين"):
+        st.session_state.prices.clear()
+        st.info("تمت إعادة التعيين، ابدأ من جديد ✨")
 
 # عرض الأسعار
 st.subheader("📊 آخر 3 أسعار:")
@@ -39,16 +47,14 @@ if len(st.session_state.prices) > 0:
 else:
     st.info("لم يتم تحميل أي أسعار بعد.")
 
-# التحليل
+# التحليل الفوري
 if len(st.session_state.prices) == 3:
     p1, p2, p3 = st.session_state.prices
     suggestion = ""
     if p3 > p2 > p1:
-        suggestion = "✅ الاتجاه: 📈 LONG"
+        suggestion = "✅ الاتجاه الحالي: 📈 LONG"
     elif p3 < p2 < p1:
-        suggestion = "✅ الاتجاه: 📉 SHORT"
+        suggestion = "✅ الاتجاه الحالي: 📉 SHORT"
     else:
-        suggestion = "✅ الاتجاه: 💤 STAY OUT"
+        suggestion = "✅ الاتجاه الحالي: 💤 STAY OUT"
     st.subheader(suggestion)
-else:
-    st.warning("لازم تجيب 3 أسعار عشان نقدر نحلل الاتجاه.")
