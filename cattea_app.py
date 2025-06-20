@@ -1,9 +1,8 @@
 import streamlit as st
-from PIL import Image
-import pytesseract
 
-# إعداد صفحة Streamlit
-st.set_page_config(page_title="Cattea Price Analyzer", layout="centered")
+# إعداد الصفحة
+st.set_page_config(page_title="تحليل اتجاه BTcat", layout="centered", initial_sidebar_state="auto")
+
 st.markdown(
     """
     <style>
@@ -13,53 +12,41 @@ st.markdown(
     """, unsafe_allow_html=True
 )
 
-st.title("📷 تحليل اتجاه BTcat من الصورة")
+st.title("📈 تحليل اتجاه BTcat")
+st.write("ادخل السعر الحالي، وسيتم تحليل الاتجاه بناءً على آخر 3 أسعار.")
 
-# إعداد قائمة الأسعار
+# إنشاء قائمة ديناميكية للأسعار
 if "prices" not in st.session_state:
     st.session_state.prices = []
 
-# رفع صورة
-uploaded_file = st.file_uploader("📸 ارفع لقطة الشاشة من اللعبة", type=["png", "jpg", "jpeg"])
+# إدخال السعر
+new_price = st.number_input("أدخل السعر الحالي", format="%.2f")
 
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="📷 الصورة المرفوعة", use_column_width=True)
+# زر إضافة السعر وتحليل الاتجاه
+if st.button("📊 تحليل الاتجاه"):
+    st.session_state.prices.append(new_price)
 
-    # قراءة السعر من الصورة
-    extracted_text = pytesseract.image_to_string(image)
+    # نخزن فقط آخر 3 أسعار
+    if len(st.session_state.prices) > 3:
+        st.session_state.prices.pop(0)
 
-    # استخراج أول رقم عشري موجود
-    import re
-    match = re.search(r"\d{2,6}\.\d{1,2}", extracted_text)
-    if match:
-        price = float(match.group())
-        st.success(f"✅ السعر المُستخرج: {price}")
-        st.session_state.prices.append(price)
+    prices = st.session_state.prices
+    st.write("🧾 الأسعار الأخيرة:", prices)
 
-        # نخزن فقط آخر 3 أسعار
-        if len(st.session_state.prices) > 3:
-            st.session_state.prices.pop(0)
+    if len(prices) == 3:
+        p1, p2, p3 = prices
 
-        prices = st.session_state.prices
-        st.write("🧾 الأسعار الأخيرة:", prices)
+        # تحليل الاتجاه الذكي
+        if p3 > p2 > p1:
+            st.success("🔺 الاتجاه: صعود قوي")
+        elif p3 < p2 < p1:
+            st.error("🔻 الاتجاه: هبوط قوي")
+        elif (p3 > p2 < p1) or (p3 < p2 > p1):
+            st.warning("🔃 الاتجاه: متذبذب (غير مستقر)")
+        else:
+            st.info("⏸️ الاتجاه: ثابت (ضعيف الحركة)")
 
-        if len(prices) == 3:
-            p1, p2, p3 = prices
-
-            if p3 > p2 > p1:
-                st.success("🔺 الاتجاه: صعود قوي")
-            elif p3 < p2 < p1:
-                st.error("🔻 الاتجاه: هبوط قوي")
-            elif (p3 > p2 < p1) or (p3 < p2 > p1):
-                st.warning("🔃 الاتجاه: متذبذب")
-            else:
-                st.info("⏸️ الاتجاه: ثابت")
-
-    else:
-        st.warning("❌ لم يتم العثور على رقم في الصورة")
-
-# زر Reset
+# زر إعادة تعيين
 if st.button("🔄 Reset"):
     st.session_state.prices = []
     st.success("✅ تم مسح الأسعار.")
