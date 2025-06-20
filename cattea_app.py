@@ -6,37 +6,37 @@ import cv2
 import re
 
 st.set_page_config(page_title="تحليل BTcat", layout="centered")
-st.title("📷 تحليل الاتجاه من لقطة الشاشة (مع قص السعر من الطيارة)")
+st.title("✂️ تحليل الاتجاه - BTcat من لعبة Cattea")
 
 if "prices" not in st.session_state:
     st.session_state.prices = []
 
-uploaded_file = st.file_uploader("📸 ارفع صورة من اللعبة", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("📸 ارفع صورة من اللعبة (لقطة شاشة)", type=["png", "jpg", "jpeg"])
 
 if uploaded_file:
     image = Image.open(uploaded_file)
     st.image(image, caption="📷 الصورة الأصلية", use_column_width=True)
 
-    # تحويل الصورة إلى numpy array ومعالجتها
     img = np.array(image)
     height, width, _ = img.shape
 
-    # 👇 قص منطقة السعر داخل الطيارة (تقديريًا منتصف الصورة)
-    crop_top = int(height * 0.42)
+    # قص منطقة السعر من وسط الطيارة (أكثر دقة)
+    crop_top = int(height * 0.41)
     crop_bottom = int(height * 0.52)
-    crop_left = int(width * 0.25)
-    crop_right = int(width * 0.75)
+    crop_left = int(width * 0.3)
+    crop_right = int(width * 0.7)
 
     cropped = img[crop_top:crop_bottom, crop_left:crop_right]
-    st.image(cropped, caption="✂️ المنطقة المقصوصة (السعر فقط)")
+    st.image(cropped, caption="📍 السعر المقصوص")
 
-    # تحويل لصورة رمادية ومعالجة
+    # تحويل إلى رمادي وتحسين الصورة
     gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # OCR
-    extracted_text = pytesseract.image_to_string(thresh)
-    st.text_area("📄 النص المستخرج:", extracted_text, height=100)
+    extracted_text = pytesseract.image_to_string(thresh, config="--psm 6")
+    st.text_area("📄 النص المستخرج:", extracted_text, height=80)
 
     match = re.search(r"\d{4,6}\.\d{2}", extracted_text)
     if match:
@@ -47,7 +47,7 @@ if uploaded_file:
         if len(st.session_state.prices) > 3:
             st.session_state.prices.pop(0)
 
-        st.write("🧾 آخر 3 أسعار:", st.session_state.prices)
+        st.write("📈 آخر 3 أسعار:", st.session_state.prices)
 
         if len(st.session_state.prices) == 3:
             p1, p2, p3 = st.session_state.prices
@@ -60,9 +60,9 @@ if uploaded_file:
             else:
                 st.info("⏸️ الاتجاه: ثابت")
     else:
-        st.warning("❌ السعر غير واضح، جرّب صورة أوضح أو تكبير الطيارة")
+        st.warning("❌ فشل في استخراج السعر بدقة من الصورة")
 
-# زر Reset
+# زر إعادة تعيين
 if st.button("🔄 Reset"):
     st.session_state.prices = []
-    st.success("✅ تم إعادة التهيئة.")
+    st.success("✅ تم مسح جميع البيانات")
