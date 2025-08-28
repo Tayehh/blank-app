@@ -1,14 +1,3 @@
-import sys
-import subprocess
-
-# تثبيت المكتبات لو مش متسطبة
-required = ["opencv-python", "pillow", "matplotlib", "pandas"]
-for pkg in required:
-    try:
-        __import__(pkg.split("-")[0])
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,14 +5,15 @@ from PIL import Image
 import pandas as pd
 
 # ------------------------------------
-# تحميل الصورة (في Colab أو ملف عادي)
+# تحميل الصورة
 # ------------------------------------
+# في Streamlit هتستخدم st.file_uploader بدل input/Colab
 try:
     from google.colab import files
     uploaded = files.upload()
     image_path = list(uploaded.keys())[0]
 except ImportError:
-    # لو مش شغال في Colab هيدخلك هنا
+    # لو مش شغال في Colab اطلب مسار الصورة
     image_path = input("اكتب مسار الصورة (مثال: test.png): ").strip()
 
 # قراءة الصورة
@@ -66,9 +56,13 @@ plt.imshow(img_rgb)
 plt.axis("off")
 plt.show()
 
-# حفظ النتائج
+# حفظ النتائج في DataFrame
 data = [{"x":x, "y":y, "w":w, "h":h, "symbol":name} for (x,y,w,h,name) in detected]
 df = pd.DataFrame(data).sort_values(by=["y","x"]).reset_index(drop=True)
 
 print("\n📊 النتائج:")
 print(df)
+
+# حفظ النتائج كملف CSV
+df.to_csv("results.csv", index=False)
+print("\n✅ تم حفظ النتائج في ملف: results.csv")
