@@ -1,81 +1,61 @@
-import streamlit as st
-import requests
-from collections import deque
+# تثبيت المكتبات
+!pip install opencv-python pillow matplotlib pandas
 
-st.set_page_config(page_title="Cattea Trading Helper", layout="centered")
-st.title("📈 مساعد التداول الذكي في Cattea (BTcat أو BTC)")
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import pandas as pd
+from google.colab import files
 
-st.markdown("أدخل أو اجلب السعر، وسيقوم البرنامج بتحليل الاتجاه العام 👇")
+# رفع الصورة
+uploaded = files.upload()
+image_path = list(uploaded.keys())[0]
 
-# إعداد التخزين المؤقت لآخر 3 أسعار
-if "prices" not in st.session_state:
-    st.session_state.prices = deque(maxlen=3)
+# قراءة الصورة
+img = cv2.imread(image_path)
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-# زر جلب سعر بيتكوين (اختياري)
-@st.cache_data(ttl=30)
-def get_btc_price():
-    try:
-        r = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
-        return r.json()["bitcoin"]["usd"]
-    except:
-        return None
+# تحويلها للرمادي
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-col1, col2 = st.columns(2)
+# ----------------------------
+# إعداد قوالب (Templates)
+# ----------------------------
+# هنا ترفع صور صغيرة للرموز (بطة، قطة، بيتكوين..) بنفس الأيقونات
+# تحفظها باسم: cat.png, duck.png, btc.png, paw.png, ton.png
+templates = {
+    "cat": cv2.imread("cat.png", 0),
+    "duck": cv2.imread("duck.png", 0),
+    "btc": cv2.imread("btc.png", 0),
+    "paw": cv2.imread("paw.png", 0),
+    "ton": cv2.imread("ton.png", 0),
+}
 
-with col1:
-    if st.button("📥 جلب السعر (BTC فقط)"):
-        price = get_btc_price()
-        if price:
-            st.session_state.prices.append(price)
-            st.success(f"السعر المضاف: {price} $")
-        else:
-            st.error("فشل في جلب السعر من CoinGecko")
+detected = []
 
-with col2:
-    if st.button("🔄 إعادة تعيين"):
-        st.session_state.prices.clear()
-        st.info("تم حذف كل الأسعار")
+# البحث عن كل رمز
+for name, template in templates.items():
+    if template is None:
+        continue
+    w, h = template.shape[::-1]
+    res = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    threshold = 0.7  # نسبة التشابه
+    loc = np.where(res >= threshold)
+    for pt in zip(*loc[::-1]):
+        detected.append((pt[0], pt[1], w, h, name))
+        cv2.rectangle(img_rgb, pt, (pt[0]+w, pt[1]+h), (255,0,0), 2)
+        cv2.putText(img_rgb, name, (pt[0], pt[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), 1)
 
-# إدخال يدوي
-manual_price = st.number_input("أو أدخل السعر يدويًا (BTcat)", format="%.20f")
-if st.button("➕ أضف السعر اليدوي"):
-    if manual_price > 0:
-        st.session_state.prices.append(manual_price)
-        st.success(f"تمت إضافة السعر: {manual_price}")
-    else:
-        st.warning("يجب إدخال سعر أكبر من صفر")
+# عرض الصورة مع العلامات
+plt.figure(figsize=(8,8))
+plt.imshow(img_rgb)
+plt.axis("off")
+plt.show()
 
-# عرض الأسعار
-st.subheader("📊 آخر 3 أسعار:")
-for i, price in enumerate(reversed(st.session_state.prices), 1):
-    st.write(f"السعر {i}: {price}")
-
-# التحليل الذكي
-if len(st.session_state.prices) == 3:
-    p1, p2, p3 = st.session_state.prices
-    delta1 = p2 - p1
-    delta2 = p3 - p2
-    avg_change = (delta1 + delta2) / 2
-
-    # عتبات شديدة الحساسية
-    threshold_weak = 0.0
-    threshold_strong = 0.000000000000001
-
-    # تحديد الاتجاه
-    direction = "💤 STAY OUT"
-    strength = "❔ غير واضح"
-
-    if avg_change > threshold_weak:
-        direction = "📈 LONG"
-        strength = "🔥 قوي" if avg_change > threshold_strong else "⚠️ ضعيف"
-    elif avg_change < -threshold_weak:
-        direction = "📉 SHORT"
-        strength = "🔥 قوي" if avg_change < -threshold_strong else "⚠️ ضعيف"
-    else:
-        direction = "💤 STAY OUT"
-        strength = "🔍 الاتجاه الجانبي"
-
-    # عرض النتيجة
-    st.subheader(f"✅ الاتجاه الحالي: {direction}")
-    st.write(f"📐 قوة الاتجاه: {strength}")
-    st.write(f"📈 متوسط التغير: {avg_change:.20f}")
+# تحويل النتائج لـ DataFrame
+data = [{"x":x, "y":y, "w":w, "h":h, "symbol":name} for (x,y,w,h,name) in detected]
+df = pd.DataFrame(data).sort_values(by=["y","x"]).reset_index(drop=True)
+import pandas as pd
+from IPython.display import display
+display(df)
